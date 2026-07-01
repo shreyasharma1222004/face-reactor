@@ -1,0 +1,811 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Face Reactor</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;700;800;900&display=swap');
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+:root{
+  --bg:#0d0d1a;--card:#16162a;--accent:#a855f7;--accent2:#ec4899;
+  --yellow:#fbbf24;--green:#34d399;--red:#f87171;
+}
+body{
+  background:var(--bg);color:#fff;
+  font-family:'Nunito',system-ui,sans-serif;
+  overflow:hidden;height:100vh;width:100vw;
+  display:flex;align-items:center;justify-content:center;
+}
+
+/* ── SCREENS ── */
+.screen{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;padding:24px;transition:opacity 0.3s;pointer-events:none;opacity:0}
+.screen.active{opacity:1;pointer-events:all}
+
+/* ── INTRO ── */
+#intro{background:linear-gradient(160deg,#0d0d1a 60%,#1a0d2e)}
+.logo{font-size:48px;font-weight:900;letter-spacing:-1px;line-height:1;text-align:center}
+.logo span{background:linear-gradient(135deg,var(--accent),var(--accent2));-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.tagline{font-size:14px;opacity:0.45;letter-spacing:2px;text-transform:uppercase;text-align:center}
+.how-cards{display:grid;grid-template-columns:1fr 1fr;gap:8px;width:100%;max-width:360px;margin:8px 0}
+.how-card{background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.08);border-radius:14px;padding:14px;text-align:center}
+.how-card .icon{font-size:28px;margin-bottom:6px}
+.how-card p{font-size:12px;opacity:0.5;line-height:1.5}
+.how-card strong{display:block;font-size:13px;opacity:0.9;margin-bottom:3px}
+#start-btn{
+  width:100%;max-width:320px;padding:16px;
+  background:linear-gradient(135deg,var(--accent),var(--accent2));
+  border:none;border-radius:16px;color:#fff;font-size:18px;font-weight:900;
+  cursor:pointer;letter-spacing:0.5px;font-family:inherit;
+  box-shadow:0 8px 32px rgba(168,85,247,0.4);
+  transition:transform 0.15s,box-shadow 0.15s;
+}
+#start-btn:active{transform:scale(0.97)}
+.loading-txt{font-size:12px;opacity:0.35;letter-spacing:1px;text-transform:uppercase;min-height:16px}
+
+/* ── GAME ── */
+#game{background:var(--bg);flex-direction:column;justify-content:flex-start;padding:0;gap:0}
+
+/* top strip */
+#top-strip{
+  width:100%;padding:12px 20px 10px;
+  display:flex;align-items:center;justify-content:space-between;
+  background:rgba(0,0,0,0.3);flex-shrink:0;
+}
+#round-pip{font-size:12px;letter-spacing:2px;opacity:0.4;text-transform:uppercase}
+#score-pip{font-size:20px;font-weight:900;color:var(--yellow)}
+#timer-pip{font-size:12px;letter-spacing:2px;opacity:0.4;text-transform:uppercase}
+
+/* game body */
+#game-body{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:16px;width:100%}
+
+/* stimulus card */
+#stim-card{
+  width:100%;max-width:340px;
+  background:var(--card);border-radius:24px;
+  border:2px solid rgba(255,255,255,0.07);
+  overflow:hidden;position:relative;
+  box-shadow:0 20px 60px rgba(0,0,0,0.5);
+  flex-shrink:0;
+}
+#stim-canvas{width:100%;display:block;border-radius:22px}
+#stim-label{
+  position:absolute;bottom:0;left:0;right:0;
+  padding:10px 16px;
+  background:linear-gradient(to top,rgba(0,0,0,0.85),transparent);
+  font-size:13px;font-weight:700;letter-spacing:1px;text-transform:uppercase;opacity:0.7;
+}
+
+/* countdown ring */
+#countdown-wrap{position:absolute;top:10px;right:10px}
+#countdown-svg{width:44px;height:44px}
+#countdown-circle{transition:stroke-dashoffset 0.1s linear}
+#countdown-num{
+  position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
+  font-size:15px;font-weight:900;
+}
+
+/* cam + expression */
+#cam-section{width:100%;max-width:340px;display:flex;gap:10px;align-items:stretch}
+#cam-wrap{position:relative;flex:1;border-radius:16px;overflow:hidden;background:#000;min-height:120px}
+#webcam{width:100%;height:100%;object-fit:cover;transform:scaleX(-1);display:block;border-radius:16px}
+#face-canvas{position:absolute;inset:0;width:100%;height:100%;border-radius:16px}
+
+/* expression meters */
+#meters{display:flex;flex-direction:column;gap:7px;justify-content:center;width:110px;flex-shrink:0}
+.meter-row{display:flex;flex-direction:column;gap:3px}
+.meter-label{font-size:10px;opacity:0.4;letter-spacing:1px;text-transform:uppercase}
+.meter-track{height:8px;background:rgba(255,255,255,0.07);border-radius:4px;overflow:hidden}
+.meter-fill{height:100%;border-radius:4px;transition:width 0.1s;width:0%}
+#m-mouth .meter-fill{background:linear-gradient(90deg,#f87171,#fbbf24)}
+#m-brow .meter-fill{background:linear-gradient(90deg,#60a5fa,#a855f7)}
+#m-eyes .meter-fill{background:linear-gradient(90deg,#34d399,#60a5fa)}
+
+/* live score ring */
+#live-score-wrap{text-align:center}
+#live-score-label{font-size:10px;opacity:0.35;letter-spacing:2px;text-transform:uppercase;margin-bottom:2px}
+#live-score{font-size:28px;font-weight:900;color:var(--yellow);text-shadow:0 0 20px rgba(251,191,36,0.5)}
+
+/* reaction flash overlay */
+#react-overlay{
+  position:fixed;inset:0;pointer-events:none;z-index:50;
+  opacity:0;transition:opacity 0.15s;
+  display:flex;align-items:center;justify-content:center;
+  font-size:72px;
+}
+
+/* ── SCORE REVEAL ── */
+#score-reveal{
+  position:fixed;inset:0;background:rgba(0,0,0,0);z-index:40;
+  display:none;align-items:center;justify-content:center;
+  flex-direction:column;gap:6px;
+}
+#sr-emoji{font-size:64px;transform:scale(0);transition:transform 0.35s cubic-bezier(0.34,1.56,0.64,1)}
+#sr-score{font-size:72px;font-weight:900;color:var(--yellow);text-shadow:0 0 40px rgba(251,191,36,0.6);opacity:0;transition:opacity 0.3s 0.2s}
+#sr-label{font-size:14px;opacity:0;letter-spacing:2px;text-transform:uppercase;transition:opacity 0.3s 0.35s}
+#sr-next{
+  margin-top:12px;padding:13px 36px;
+  background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.15);
+  border-radius:100px;color:#fff;font-size:15px;font-weight:800;
+  cursor:pointer;font-family:inherit;opacity:0;transition:opacity 0.3s 0.5s;
+  pointer-events:none;
+}
+
+/* ── RESULTS ── */
+#results{background:linear-gradient(160deg,#0d0d1a,#1a0a2e)}
+#results-title{font-size:28px;font-weight:900;letter-spacing:2px;text-align:center}
+#total-score{font-size:72px;font-weight:900;background:linear-gradient(135deg,var(--yellow),var(--accent2));-webkit-background-clip:text;-webkit-text-fill-color:transparent;line-height:1}
+#reactor-rating{font-size:18px;font-weight:800;color:var(--accent);text-align:center}
+#score-breakdown{width:100%;max-width:340px;display:flex;flex-direction:column;gap:6px;max-height:220px;overflow-y:auto}
+.score-row{display:flex;align-items:center;gap:10px;background:rgba(255,255,255,0.04);border-radius:10px;padding:8px 12px}
+.sr-emoji{font-size:22px;width:30px;text-align:center}
+.sr-name{flex:1;font-size:12px;opacity:0.6;letter-spacing:0.5px}
+.sr-pts{font-size:15px;font-weight:900;color:var(--yellow)}
+.sr-bar{width:60px;height:5px;background:rgba(255,255,255,0.08);border-radius:3px;overflow:hidden}
+.sr-bar-fill{height:100%;background:linear-gradient(90deg,var(--accent),var(--accent2));border-radius:3px}
+#share-btn{
+  width:100%;max-width:340px;padding:15px;
+  background:linear-gradient(135deg,var(--accent),var(--accent2));
+  border:none;border-radius:16px;color:#fff;font-size:16px;font-weight:900;
+  cursor:pointer;font-family:inherit;
+  box-shadow:0 8px 32px rgba(168,85,247,0.4);
+}
+#play-again-btn{
+  width:100%;max-width:340px;padding:13px;
+  background:rgba(255,255,255,0.07);border:1px solid rgba(255,255,255,0.1);
+  border-radius:16px;color:#fff;font-size:15px;font-weight:800;
+  cursor:pointer;font-family:inherit;
+}
+</style>
+</head>
+<body>
+
+<!-- INTRO -->
+<div class="screen active" id="intro">
+  <div class="logo">Face<br><span>Reactor</span></div>
+  <div class="tagline">How dramatic are you?</div>
+  <div class="how-cards">
+    <div class="how-card"><div class="icon">😱</div><strong>See it</strong><p>Wild images appear on screen</p></div>
+    <div class="how-card"><div class="icon">🤯</div><strong>React</strong><p>Show your real reaction to the camera</p></div>
+    <div class="how-card"><div class="icon">📊</div><strong>Score</strong><p>The bigger your expression, the more points</p></div>
+    <div class="how-card"><div class="icon">🏆</div><strong>Rate</strong><p>Earn your Reactor Rating at the end</p></div>
+  </div>
+  <button id="start-btn">Allow Camera & Play 😱</button>
+  <div class="loading-txt" id="loading-txt"></div>
+</div>
+
+<!-- GAME -->
+<div class="screen" id="game">
+  <div id="top-strip">
+    <div id="round-pip">ROUND <span id="round-num">1</span>/10</div>
+    <div id="score-pip">0 pts</div>
+    <div id="timer-pip">GET READY</div>
+  </div>
+  <div id="game-body">
+    <div id="stim-card">
+      <canvas id="stim-canvas" width="340" height="220"></canvas>
+      <div id="stim-label">—</div>
+      <div id="countdown-wrap">
+        <svg id="countdown-svg" viewBox="0 0 44 44">
+          <circle cx="22" cy="22" r="18" fill="rgba(0,0,0,0.5)" stroke="rgba(255,255,255,0.08)" stroke-width="3"/>
+          <circle id="countdown-circle" cx="22" cy="22" r="18" fill="none" stroke="#a855f7" stroke-width="3"
+            stroke-dasharray="113" stroke-dashoffset="0" stroke-linecap="round" transform="rotate(-90 22 22)"/>
+        </svg>
+        <div id="countdown-num">3</div>
+      </div>
+    </div>
+    <div id="cam-section">
+      <div id="cam-wrap">
+        <video id="webcam" autoplay muted playsinline></video>
+        <canvas id="face-canvas"></canvas>
+      </div>
+      <div id="meters">
+        <div id="live-score-wrap">
+          <div id="live-score-label">score</div>
+          <div id="live-score">0</div>
+        </div>
+        <div class="meter-row" id="m-mouth">
+          <div class="meter-label">😮 mouth</div>
+          <div class="meter-track"><div class="meter-fill" id="fill-mouth"></div></div>
+        </div>
+        <div class="meter-row" id="m-brow">
+          <div class="meter-label">🤨 brows</div>
+          <div class="meter-track"><div class="meter-fill" id="fill-brow"></div></div>
+        </div>
+        <div class="meter-row" id="m-eyes">
+          <div class="meter-label">👀 eyes</div>
+          <div class="meter-track"><div class="meter-fill" id="fill-eyes"></div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- SCORE REVEAL -->
+<div id="score-reveal">
+  <div id="sr-emoji"></div>
+  <div id="sr-score"></div>
+  <div id="sr-label"></div>
+  <button id="sr-next">Next Round →</button>
+</div>
+
+<!-- RESULTS -->
+<div class="screen" id="results">
+  <div id="results-title">YOUR RESULTS</div>
+  <div id="total-score">0</div>
+  <div id="reactor-rating">—</div>
+  <div id="score-breakdown"></div>
+  <button id="share-btn">📋 Copy Score Card</button>
+  <button id="play-again-btn">Play Again</button>
+</div>
+
+<div id="react-overlay"></div>
+
+<script type="module">
+import{FilesetResolver,FaceLandmarker}from"https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.0/vision_bundle.js";
+
+const $=id=>document.getElementById(id);
+const show=id=>{document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));$(id).classList.add('active');}
+
+// ── STIMULI (drawn on canvas — no external images) ────────────────
+const STIMULI=[
+  {
+    name:"Giant Spider",emoji:"🕷️",
+    draw(ctx,w,h){
+      ctx.fillStyle='#1a0a0a';ctx.fillRect(0,0,w,h);
+      // web
+      ctx.strokeStyle='rgba(255,255,255,0.15)';ctx.lineWidth=1;
+      for(let a=0;a<8;a++){ctx.beginPath();ctx.moveTo(w/2,h/2);ctx.lineTo(w/2+Math.cos(a*Math.PI/4)*w,h/2+Math.sin(a*Math.PI/4)*h);ctx.stroke();}
+      for(let r=30;r<200;r+=35){ctx.beginPath();ctx.arc(w/2,h/2,r,0,Math.PI*2);ctx.stroke();}
+      // body
+      ctx.fillStyle='#111';ctx.shadowColor='#000';ctx.shadowBlur=20;
+      ctx.beginPath();ctx.ellipse(w/2,h/2+10,45,35,0,0,Math.PI*2);ctx.fill();
+      ctx.beginPath();ctx.ellipse(w/2,h/2-30,25,22,0,0,Math.PI*2);ctx.fill();
+      // eyes
+      ctx.shadowBlur=0;
+      [[w/2-12,h/2-35],[w/2+12,h/2-35],[w/2-20,h/2-28],[w/2+20,h/2-28]].forEach(([x,y])=>{
+        ctx.fillStyle='#ff2222';ctx.beginPath();ctx.arc(x,y,5,0,Math.PI*2);ctx.fill();
+      });
+      // legs
+      ctx.strokeStyle='#333';ctx.lineWidth=4;ctx.lineCap='round';
+      [[-1.2,-0.8,-1.5,0.2],[-1.1,-0.3,-1.6,0.8],[-1.1,0.4,-1.4,1.2],[-1.1,1.0,-1.3,1.6],
+       [1.2,-0.8,1.5,0.2],[1.1,-0.3,1.6,0.8],[1.1,0.4,1.4,1.2],[1.1,1.0,1.3,1.6]].forEach(([x1,y1,x2,y2])=>{
+        ctx.beginPath();ctx.moveTo(w/2+x1*40,h/2+y1*30);ctx.lineTo(w/2+x2*70,h/2+y2*50);ctx.stroke();
+      });
+    }
+  },
+  {
+    name:"FREE MONEY",emoji:"💸",
+    draw(ctx,w,h){
+      ctx.fillStyle='#0a2a0a';ctx.fillRect(0,0,w,h);
+      // money rain
+      for(let i=0;i<12;i++){
+        const x=20+i*(w/12),y=10+Math.sin(i*1.3)*60;
+        ctx.fillStyle='#22c55e';ctx.font='bold 32px sans-serif';ctx.textAlign='center';
+        ctx.fillText('💵',x,y+80);
+      }
+      // big text
+      ctx.fillStyle='#fbbf24';ctx.font='bold 58px sans-serif';ctx.textAlign='center';
+      ctx.shadowColor='#fbbf24';ctx.shadowBlur=30;
+      ctx.fillText('FREE',w/2,h/2+10);
+      ctx.fillStyle='#4ade80';ctx.font='bold 42px sans-serif';ctx.shadowBlur=20;
+      ctx.fillText('$1,000,000',w/2,h/2+58);
+      ctx.shadowBlur=0;
+      ctx.fillStyle='rgba(255,255,255,0.15)';ctx.font='12px sans-serif';
+      ctx.fillText('FOR YOU RIGHT NOW!!!',w/2,h/2+82);
+    }
+  },
+  {
+    name:"Jump Scare",emoji:"👻",
+    draw(ctx,w,h){
+      ctx.fillStyle='#000';ctx.fillRect(0,0,w,h);
+      // dark hallway
+      const g=ctx.createRadialGradient(w/2,h/2,10,w/2,h/2,w);
+      g.addColorStop(0,'#1a1a1a');g.addColorStop(1,'#000');
+      ctx.fillStyle=g;ctx.fillRect(0,0,w,h);
+      // face
+      ctx.fillStyle='#e8e8e8';ctx.shadowColor='#fff';ctx.shadowBlur=40;
+      ctx.beginPath();ctx.ellipse(w/2,h/2,75,90,0,0,Math.PI*2);ctx.fill();
+      ctx.shadowBlur=0;
+      // hollow eyes
+      ctx.fillStyle='#000';
+      ctx.beginPath();ctx.ellipse(w/2-28,h/2-15,22,28,0,0,Math.PI*2);ctx.fill();
+      ctx.beginPath();ctx.ellipse(w/2+28,h/2-15,22,28,0,0,Math.PI*2);ctx.fill();
+      // scream mouth
+      ctx.beginPath();ctx.ellipse(w/2,h/2+35,30,38,0,0,Math.PI*2);ctx.fill();
+      // text
+      ctx.fillStyle='#ff0000';ctx.font='bold 20px sans-serif';ctx.textAlign='center';
+      ctx.shadowColor='#f00';ctx.shadowBlur=15;
+      ctx.fillText('BOO!!!',w/2,h-20);ctx.shadowBlur=0;
+    }
+  },
+  {
+    name:"Expired Milk",emoji:"🤢",
+    draw(ctx,w,h){
+      ctx.fillStyle='#1a1a0a';ctx.fillRect(0,0,w,h);
+      // carton
+      ctx.fillStyle='#ffffff';ctx.fillRect(w/2-50,h/2-70,100,110);
+      ctx.fillStyle='#e8f5e9';ctx.fillRect(w/2-46,h/2-50,92,86);
+      // gross color
+      ctx.fillStyle='rgba(150,180,30,0.6)';ctx.fillRect(w/2-46,h/2-50,92,86);
+      // label
+      ctx.fillStyle='#333';ctx.font='bold 13px sans-serif';ctx.textAlign='center';
+      ctx.fillText('MILK',w/2,h/2-10);
+      ctx.fillStyle='#cc0000';ctx.font='bold 10px sans-serif';
+      ctx.fillText('EXP: 1999',w/2,h/2+8);
+      // smell lines
+      ctx.strokeStyle='rgba(150,255,0,0.5)';ctx.lineWidth=2;ctx.setLineDash([4,4]);
+      for(let i=-2;i<=2;i++){
+        ctx.beginPath();
+        ctx.moveTo(w/2+i*18,h/2-70);
+        ctx.bezierCurveTo(w/2+i*18-10,h/2-100,w/2+i*18+10,h/2-120,w/2+i*18,h/2-145);
+        ctx.stroke();
+      }
+      ctx.setLineDash([]);
+      // face
+      ctx.font='60px sans-serif';ctx.textAlign='center';
+      ctx.fillText('🤢',w/2,h-20);
+    }
+  },
+  {
+    name:"You Won!",emoji:"🏆",
+    draw(ctx,w,h){
+      // confetti bg
+      ctx.fillStyle='#0a0a20';ctx.fillRect(0,0,w,h);
+      const cols=['#f87171','#fbbf24','#4ade80','#60a5fa','#a855f7','#f472b6'];
+      for(let i=0;i<40;i++){
+        ctx.fillStyle=cols[i%cols.length];
+        ctx.save();ctx.translate(Math.random()*w,Math.random()*h);ctx.rotate(Math.random()*Math.PI);
+        ctx.fillRect(-8,-4,16,8);ctx.restore();
+      }
+      ctx.font='70px sans-serif';ctx.textAlign='center';ctx.fillText('🏆',w/2,h/2+10);
+      ctx.fillStyle='#fbbf24';ctx.font='bold 32px sans-serif';
+      ctx.shadowColor='#fbbf24';ctx.shadowBlur=20;
+      ctx.fillText('YOU WON!',w/2,h/2+62);
+      ctx.shadowBlur=0;
+      ctx.fillStyle='rgba(255,255,255,0.5)';ctx.font='14px sans-serif';
+      ctx.fillText('$10,000 PRIZE 🎉',w/2,h/2+88);
+    }
+  },
+  {
+    name:"Tiny Cute Puppy",emoji:"🐶",
+    draw(ctx,w,h){
+      ctx.fillStyle='#fdf4e7';ctx.fillRect(0,0,w,h);
+      // soft glow
+      const g=ctx.createRadialGradient(w/2,h/2,10,w/2,h/2,120);
+      g.addColorStop(0,'rgba(255,200,100,0.3)');g.addColorStop(1,'transparent');
+      ctx.fillStyle=g;ctx.fillRect(0,0,w,h);
+      // body
+      ctx.fillStyle='#c8a87a';ctx.shadowBlur=15;ctx.shadowColor='rgba(0,0,0,0.1)';
+      ctx.beginPath();ctx.ellipse(w/2,h/2+20,55,48,0,0,Math.PI*2);ctx.fill();
+      // head
+      ctx.beginPath();ctx.ellipse(w/2,h/2-40,42,38,0,0,Math.PI*2);ctx.fill();
+      // ears
+      ctx.fillStyle='#a07850';
+      ctx.beginPath();ctx.ellipse(w/2-35,h/2-65,18,28,-0.4,0,Math.PI*2);ctx.fill();
+      ctx.beginPath();ctx.ellipse(w/2+35,h/2-65,18,28,0.4,0,Math.PI*2);ctx.fill();
+      ctx.shadowBlur=0;
+      // eyes — big shiny
+      ctx.fillStyle='#2a1a0a';
+      ctx.beginPath();ctx.arc(w/2-16,h/2-44,12,0,Math.PI*2);ctx.fill();
+      ctx.beginPath();ctx.arc(w/2+16,h/2-44,12,0,Math.PI*2);ctx.fill();
+      ctx.fillStyle='#fff';
+      ctx.beginPath();ctx.arc(w/2-12,h/2-48,4,0,Math.PI*2);ctx.fill();
+      ctx.beginPath();ctx.arc(w/2+20,h/2-48,4,0,Math.PI*2);ctx.fill();
+      // nose + mouth
+      ctx.fillStyle='#7a3a2a';ctx.beginPath();ctx.ellipse(w/2,h/2-30,10,7,0,0,Math.PI*2);ctx.fill();
+      ctx.strokeStyle='#7a3a2a';ctx.lineWidth=2;ctx.lineCap='round';
+      ctx.beginPath();ctx.moveTo(w/2,h/2-23);ctx.quadraticCurveTo(w/2-12,h/2-14,w/2-16,h/2-8);ctx.stroke();
+      ctx.beginPath();ctx.moveTo(w/2,h/2-23);ctx.quadraticCurveTo(w/2+12,h/2-14,w/2+16,h/2-8);ctx.stroke();
+      // paws
+      ctx.fillStyle='#c8a87a';
+      ctx.beginPath();ctx.ellipse(w/2-40,h/2+52,18,12,0,0,Math.PI*2);ctx.fill();
+      ctx.beginPath();ctx.ellipse(w/2+40,h/2+52,18,12,0,0,Math.PI*2);ctx.fill();
+      // text
+      ctx.fillStyle='#e85a8a';ctx.font='bold 16px sans-serif';ctx.textAlign='center';
+      ctx.fillText('awwww 🥺',w/2,h-12);
+    }
+  },
+  {
+    name:"Wrong Number",emoji:"📱",
+    draw(ctx,w,h){
+      ctx.fillStyle='#111';ctx.fillRect(0,0,w,h);
+      // phone screen
+      ctx.fillStyle='#1a1a2e';ctx.beginPath();
+      ctx.roundRect(w/2-60,20,120,170,14);ctx.fill();
+      ctx.strokeStyle='rgba(255,255,255,0.1)';ctx.lineWidth=1.5;ctx.stroke();
+      // incoming call UI
+      ctx.fillStyle='rgba(255,255,255,0.07)';ctx.beginPath();
+      ctx.roundRect(w/2-55,30,110,155,10);ctx.fill();
+      // avatar
+      ctx.fillStyle='#a855f7';ctx.beginPath();ctx.arc(w/2,85,28,0,Math.PI*2);ctx.fill();
+      ctx.fillStyle='#fff';ctx.font='bold 24px sans-serif';ctx.textAlign='center';ctx.fillText('?',w/2,94);
+      // name
+      ctx.fillStyle='#fff';ctx.font='bold 12px sans-serif';ctx.fillText('UNKNOWN',w/2,126);
+      ctx.fillStyle='rgba(255,255,255,0.4)';ctx.font='10px sans-serif';ctx.fillText('Incoming call...',w/2,142);
+      // buttons
+      ctx.fillStyle='#22c55e';ctx.beginPath();ctx.arc(w/2-28,170,16,0,Math.PI*2);ctx.fill();
+      ctx.fillStyle='#ef4444';ctx.beginPath();ctx.arc(w/2+28,170,16,0,Math.PI*2);ctx.fill();
+      // message
+      ctx.fillStyle='#fbbf24';ctx.font='bold 14px sans-serif';ctx.textAlign='center';
+      ctx.fillText('"I know what you did" 👀',w/2,215);
+    }
+  },
+  {
+    name:"Your Crush Texted",emoji:"💌",
+    draw(ctx,w,h){
+      ctx.fillStyle='#1a0a1a';ctx.fillRect(0,0,w,h);
+      // hearts rain
+      ctx.font='20px sans-serif';ctx.textAlign='center';
+      for(let i=0;i<8;i++)ctx.fillText('💕',40+i*40,30+Math.sin(i)*25);
+      // message bubble
+      ctx.fillStyle='#ec4899';ctx.shadowColor='#ec4899';ctx.shadowBlur=25;
+      ctx.beginPath();ctx.roundRect(w/2-120,h/2-50,240,90,18);ctx.fill();
+      ctx.shadowBlur=0;
+      ctx.fillStyle='#fff';ctx.font='bold 14px sans-serif';ctx.textAlign='center';
+      ctx.fillText('hey... are you free',w/2,h/2-18);
+      ctx.fillText('tonight? 🥺💕',w/2,h/2+6);
+      ctx.fillStyle='rgba(255,255,255,0.5)';ctx.font='10px sans-serif';
+      ctx.fillText('YOUR CRUSH',w/2,h/2+28);
+      // big heart
+      ctx.font='50px sans-serif';ctx.fillText('💘',w/2,h-28);
+    }
+  },
+  {
+    name:"FINAL EXAM TOMORROW",emoji:"😰",
+    draw(ctx,w,h){
+      ctx.fillStyle='#0a0a0a';ctx.fillRect(0,0,w,h);
+      // paper
+      ctx.fillStyle='#fffef0';ctx.shadowColor='rgba(255,255,0,0.2)';ctx.shadowBlur=20;
+      ctx.fillRect(w/2-100,20,200,160);ctx.shadowBlur=0;
+      // text on paper
+      ctx.fillStyle='#111';ctx.font='bold 11px sans-serif';ctx.textAlign='center';
+      ctx.fillText('📋 FINAL EXAMINATION',w/2,48);
+      ctx.fillStyle='#cc0000';ctx.font='bold 13px sans-serif';
+      ctx.fillText('TOMORROW 8:00 AM',w/2,70);
+      ctx.fillStyle='#333';ctx.font='10px sans-serif';
+      ['Q1. Prove P=NP (30pts)','Q2. Explain everything (40pts)','Q3. Save humanity (30pts)'].forEach((t,i)=>{
+        ctx.fillText(t,w/2,96+i*20);
+      });
+      ctx.fillStyle='#cc0000';ctx.font='bold 10px sans-serif';
+      ctx.fillText('No notes. No phone. No mercy.',w/2,162);
+      // alarm clock
+      ctx.font='36px sans-serif';ctx.textAlign='center';ctx.fillText('⏰',w/2,210);
+      ctx.fillStyle='#ff4444';ctx.font='bold 16px sans-serif';
+      ctx.fillText('YOU FORGOT!!!',w/2,h-10);
+    }
+  },
+  {
+    name:"You're on Live TV",emoji:"📺",
+    draw(ctx,w,h){
+      ctx.fillStyle='#000';ctx.fillRect(0,0,w,h);
+      // TV border
+      ctx.fillStyle='#1a1a2e';ctx.fillRect(10,10,w-20,h-20);
+      ctx.strokeStyle='#333';ctx.lineWidth=8;ctx.strokeRect(10,10,w-20,h-20);
+      // LIVE badge
+      ctx.fillStyle='#ef4444';ctx.beginPath();ctx.roundRect(20,20,55,24,6);ctx.fill();
+      ctx.fillStyle='#fff';ctx.font='bold 13px sans-serif';ctx.textAlign='left';ctx.fillText('● LIVE',25,37);
+      // crowd
+      ctx.textAlign='center';ctx.font='18px sans-serif';
+      for(let i=0;i<10;i++)ctx.fillText(['👤','👥'][i%2],30+i*30,h-25);
+      // spotlight on you
+      const g=ctx.createRadialGradient(w/2,h/2,10,w/2,h/2,90);
+      g.addColorStop(0,'rgba(255,255,200,0.25)');g.addColorStop(1,'transparent');
+      ctx.fillStyle=g;ctx.fillRect(0,0,w,h);
+      // text
+      ctx.fillStyle='#fff';ctx.font='bold 18px sans-serif';ctx.textAlign='center';
+      ctx.shadowColor='#fff';ctx.shadowBlur=10;
+      ctx.fillText('ALL EYES ON YOU',w/2,h/2);
+      ctx.shadowBlur=0;
+      ctx.fillStyle='rgba(255,255,255,0.4)';ctx.font='12px sans-serif';
+      ctx.fillText('3 million viewers watching',w/2,h/2+26);
+      // camera emoji
+      ctx.font='32px sans-serif';ctx.fillText('🎥',w/2,h/2-52);
+    }
+  }
+];
+
+// ── FACE LANDMARK INDICES ─────────────────────────────────────────
+const LIP_TOP=13,LIP_BOT=14,LIP_L=61,LIP_R=291;
+const BROW_L=[70,63,105,66,107],BROW_R=[300,293,334,296,336];
+const EYE_TOP_L=159,EYE_BOT_L=145,EYE_TOP_R=386,EYE_BOT_R=374;
+const NOSE_TIP=1;
+
+function mouthOpen(lm){
+  const top=lm[LIP_TOP],bot=lm[LIP_BOT],l=lm[LIP_L],r=lm[LIP_R];
+  const vert=Math.abs(top.y-bot.y);
+  const horiz=Math.abs(l.x-r.x);
+  return horiz>0?Math.min(vert/horiz*3,1):0;
+}
+function browRaise(lm){
+  const nose=lm[NOSE_TIP];
+  const avgL=BROW_L.reduce((s,i)=>s+lm[i].y,0)/BROW_L.length;
+  const avgR=BROW_R.reduce((s,i)=>s+lm[i].y,0)/BROW_R.length;
+  const avg=(avgL+avgR)/2;
+  return Math.min(Math.max((nose.y-avg-0.18)*5,0),1);
+}
+function eyeWide(lm){
+  const L=Math.abs(lm[EYE_TOP_L].y-lm[EYE_BOT_L].y);
+  const R=Math.abs(lm[EYE_TOP_R].y-lm[EYE_BOT_R].y);
+  return Math.min(((L+R)/2)*18,1);
+}
+
+// ── GAME STATE ────────────────────────────────────────────────────
+let faceLM=null,stream=null;
+const video=$('webcam');
+const faceCanvas=$('face-canvas');
+const faceCtx=faceCanvas.getContext('2d');
+const stimCanvas=$('stim-canvas');
+const stimCtx=stimCanvas.getContext('2d');
+
+let currentRound=0,scores=[],totalScore=0;
+let phase='waiting'; // waiting | reacting | revealed
+let reactTimer=0,bestScore=0,lastDetect=0;
+let phaseTimer=null;
+
+// Smoothed metrics
+let smoothMouth=0,smoothBrow=0,smoothEye=0;
+
+function calcReactionScore(){
+  const raw=(smoothMouth*0.45+smoothBrow*0.35+smoothEye*0.2);
+  return Math.round(raw*100);
+}
+
+function getLabel(s){
+  if(s>=90)return'LEGENDARY 🌟';
+  if(s>=75)return'DRAMATIC 🎭';
+  if(s>=55)return'EXPRESSIVE 😮';
+  if(s>=35)return'GETTING THERE 😐';
+  if(s>=15)return'TRY HARDER 😑';
+  return'POKER FACE 🃏';
+}
+
+function getRating(avg){
+  if(avg>=85)return'🌟 Legendary Reactor';
+  if(avg>=70)return'🎭 Drama Queen/King';
+  if(avg>=50)return'😮 Expressive Soul';
+  if(avg>=30)return'😐 Chill Vibes Only';
+  return'🃏 Master Poker Face';
+}
+
+// ── ROUND FLOW ────────────────────────────────────────────────────
+const REACT_TIME=3.5; // seconds to react
+let countdownInterval=null;
+
+function startRound(idx){
+  if(idx>=STIMULI.length){endGame();return;}
+  currentRound=idx;
+  bestScore=0;
+  phase='waiting';
+  $('round-num').textContent=idx+1;
+
+  // Draw stimulus
+  stimCtx.clearRect(0,0,340,220);
+  STIMULI[idx].draw(stimCtx,340,220);
+  $('stim-label').textContent=STIMULI[idx].name;
+  $('live-score').textContent='0';
+
+  // Hide score reveal
+  $('score-reveal').style.display='none';
+
+  // Countdown 3,2,1 GO
+  let pre=3;
+  $('timer-pip').textContent='GET READY';
+  $('countdown-num').textContent=pre;
+  updateCountdownRing(1);
+
+  clearInterval(countdownInterval);
+  countdownInterval=setInterval(()=>{
+    pre--;
+    if(pre>0){
+      $('countdown-num').textContent=pre;
+    } else if(pre===0){
+      $('countdown-num').textContent='GO!';
+      $('timer-pip').textContent='REACT!';
+    } else {
+      clearInterval(countdownInterval);
+      startReacting();
+    }
+  },900);
+}
+
+function updateCountdownRing(pct){
+  const circ=113;
+  $('countdown-circle').style.strokeDashoffset=circ*(1-pct);
+}
+
+function startReacting(){
+  phase='reacting';
+  let elapsed=0;
+  const STEP=50; // ms
+  clearInterval(phaseTimer);
+  phaseTimer=setInterval(()=>{
+    elapsed+=STEP/1000;
+    const pct=1-(elapsed/REACT_TIME);
+    updateCountdownRing(Math.max(0,pct));
+    $('countdown-num').textContent=Math.ceil(Math.max(0,REACT_TIME-elapsed));
+    if(elapsed>=REACT_TIME){
+      clearInterval(phaseTimer);
+      revealScore();
+    }
+  },STEP);
+}
+
+function revealScore(){
+  phase='revealed';
+  $('timer-pip').textContent='RESULT';
+  const s=bestScore;
+  scores.push({name:STIMULI[currentRound].name,emoji:STIMULI[currentRound].emoji,score:s});
+
+  const sr=$('score-reveal');
+  sr.style.display='flex';
+  sr.style.background='rgba(0,0,0,0.88)';
+  $('sr-emoji').textContent=STIMULI[currentRound].emoji;
+  $('sr-score').textContent=s+' pts';
+  $('sr-label').textContent=getLabel(s);
+  $('sr-next').style.pointerEvents='all';
+
+  // Animate in
+  requestAnimationFrame(()=>{
+    $('sr-emoji').style.transform='scale(1)';
+    $('sr-score').style.opacity='1';
+    $('sr-label').style.opacity='1';
+    $('sr-next').style.opacity='1';
+  });
+
+  // Flash overlay
+  const ro=$('react-overlay');
+  const col=s>=70?'rgba(168,85,247,0.35)':s>=40?'rgba(251,191,36,0.25)':'rgba(248,113,113,0.2)';
+  ro.style.background=col;ro.style.opacity='1';
+  ro.textContent=s>=70?'🔥':s>=40?'😮':'😑';
+  setTimeout(()=>{ro.style.opacity='0';ro.textContent='';},600);
+
+  // Reset animation state for next
+  $('sr-emoji').style.transition='none';
+  setTimeout(()=>$('sr-emoji').style.transition='transform 0.35s cubic-bezier(0.34,1.56,0.64,1)',50);
+}
+
+$('sr-next').onclick=()=>{
+  // Reset reveal state
+  $('sr-emoji').style.transform='scale(0)';
+  $('sr-score').style.opacity='0';
+  $('sr-label').style.opacity='0';
+  $('sr-next').style.opacity='0';
+  $('sr-next').style.pointerEvents='none';
+  startRound(currentRound+1);
+};
+
+function endGame(){
+  totalScore=scores.reduce((s,r)=>s+r.score,0);
+  const avg=totalScore/scores.length;
+  $('total-score').textContent=totalScore;
+  $('reactor-rating').textContent=getRating(avg);
+
+  // Breakdown
+  const bd=$('score-breakdown');bd.innerHTML='';
+  scores.forEach(r=>{
+    const row=document.createElement('div');row.className='score-row';
+    const pct=r.score;
+    row.innerHTML=`<div class="sr-emoji">${r.emoji}</div><div class="sr-name">${r.name}</div><div class="sr-pts">${r.score}</div><div class="sr-bar"><div class="sr-bar-fill" style="width:${pct}%"></div></div>`;
+    bd.appendChild(row);
+  });
+
+  $('score-reveal').style.display='none';
+  show('results');
+}
+
+// ── MEDIAPIPE LOOP ────────────────────────────────────────────────
+function detectLoop(){
+  requestAnimationFrame(detectLoop);
+  if(!faceLM)return;
+  const now=performance.now();
+  if(now-lastDetect<40)return;
+  lastDetect=now;
+
+  faceCanvas.width=faceCanvas.offsetWidth;
+  faceCanvas.height=faceCanvas.offsetHeight;
+  const W=faceCanvas.width,H=faceCanvas.height;
+
+  let res;
+  try{res=faceLM.detectForVideo(video,now);}catch(e){return;}
+
+  faceCtx.clearRect(0,0,W,H);
+
+  if(!res.faceLandmarks||res.faceLandmarks.length===0){
+    // No face — show hint
+    faceCtx.fillStyle='rgba(255,255,255,0.15)';
+    faceCtx.font='11px sans-serif';faceCtx.textAlign='center';
+    faceCtx.fillText('show your face 😊',W/2,H/2);
+    return;
+  }
+
+  const lm=res.faceLandmarks[0];
+
+  // Draw subtle face dots
+  faceCtx.fillStyle='rgba(168,85,247,0.5)';
+  [1,33,61,291,199,10,152,234,454,70,300,159,386].forEach(i=>{
+    const p=lm[i];
+    faceCtx.beginPath();faceCtx.arc(p.x*W,p.y*H,2,0,Math.PI*2);faceCtx.fill();
+  });
+
+  // Compute metrics
+  const mouth=mouthOpen(lm);
+  const brow=browRaise(lm);
+  const eye=eyeWide(lm);
+
+  // Smooth
+  smoothMouth+=(mouth-smoothMouth)*0.2;
+  smoothBrow+=(brow-smoothBrow)*0.2;
+  smoothEye+=(eye-smoothEye)*0.2;
+
+  // Update meters
+  $('fill-mouth').style.width=(smoothMouth*100)+'%';
+  $('fill-brow').style.width=(smoothBrow*100)+'%';
+  $('fill-eyes').style.width=(smoothEye*100)+'%';
+
+  if(phase==='reacting'){
+    const s=calcReactionScore();
+    if(s>bestScore)bestScore=s;
+    $('live-score').textContent=s;
+    $('live-score').style.color=s>=70?'#a855f7':s>=40?'#fbbf24':'#60a5fa';
+    $('score-pip').textContent=scores.reduce((a,b)=>a+b.score,0)+bestScore+' pts';
+  }
+}
+
+// ── SHARE ─────────────────────────────────────────────────────────
+$('share-btn').onclick=()=>{
+  const avg=totalScore/scores.length;
+  let card=`😱 FACE REACTOR\n\n`;
+  card+=`${getRating(avg)}\nTotal: ${totalScore} pts\n\n`;
+  scores.forEach(r=>card+=`${r.emoji} ${r.name}: ${r.score}/100\n`);
+  card+=`\nPlay at: face-reactor.github.io`;
+  navigator.clipboard.writeText(card).then(()=>{
+    $('share-btn').textContent='✅ Copied!';
+    setTimeout(()=>$('share-btn').textContent='📋 Copy Score Card',2000);
+  });
+};
+
+$('play-again-btn').onclick=()=>{
+  scores=[];totalScore=0;currentRound=0;
+  show('game');
+  startRound(0);
+};
+
+// ── INIT ──────────────────────────────────────────────────────────
+async function init(){
+  $('loading-txt').textContent='Loading face model...';
+  const vision=await FilesetResolver.forVisionTasks("https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.0/wasm");
+  faceLM=await FaceLandmarker.createFromOptions(vision,{
+    baseOptions:{
+      modelAssetPath:"https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task",
+      delegate:"GPU"
+    },
+    runningMode:"VIDEO",numFaces:1,
+    outputFaceBlendshapes:false,
+    minFaceDetectionConfidence:0.5,
+    minFacePresenceConfidence:0.5,
+    minTrackingConfidence:0.5
+  });
+  $('loading-txt').textContent='Starting camera...';
+  stream=await navigator.mediaDevices.getUserMedia({
+    video:{facingMode:'user',width:320,height:240,frameRate:30},audio:false
+  });
+  video.srcObject=stream;
+  video.addEventListener('loadeddata',()=>{
+    show('game');
+    detectLoop();
+    startRound(0);
+  });
+}
+
+$('start-btn').onclick=async()=>{
+  $('start-btn').disabled=true;$('start-btn').textContent='Loading...';
+  try{await init();}
+  catch(e){
+    $('loading-txt').textContent='Error: '+e.message;
+    $('start-btn').disabled=false;$('start-btn').textContent='Try Again';
+  }
+};
+</script>
+</body>
+</html>
